@@ -9,8 +9,8 @@ import docx
 # Voice Output Library
 from gtts import gTTS 
 
-# Microphone Recorder Component and STT Library
-from streamlit_audio_recorder import st_audio_recorder 
+# Microphone Recorder Component (FIXED) and STT Library
+from st_audiorec import st_audiorec # <<< FIXED IMPORT
 from google.cloud import speech 
 
 # Gemini API Libraries
@@ -27,10 +27,9 @@ SYSTEM_INSTRUCTION = (
     "Your response MUST ONLY contain the structured JSON object. Do not output any prose, pleasantries, or introductions."
 )
 
-# Initialize Gemini Client
+# Initialize Gemini Client (Omitted for brevity)
 @st.cache_resource
 def get_gemini_client():
-    """Initializes the Gemini client, checking for the API key."""
     try:
         if "GEMINI_API_KEY" not in os.environ:
             st.error("GEMINI_API_KEY environment variable is not set.")
@@ -40,30 +39,8 @@ def get_gemini_client():
         st.error(f"Error initializing Gemini client: {e}")
         return None
 
-client = get_gemini_client()
+client = get_gemINI_client()
 
-
-# --- STREAMLIT UI/AESTHETIC FIXES ---
-
-def hide_streamlit_elements():
-    """Hides the main menu, GitHub icons, and footer for a cleaner look."""
-    hide_menu_style = """
-    <style>
-    /* Hides the three-dot menu and footer */
-    #MainMenu {visibility: hidden;}
-    footer {visibility: hidden;}
-    
-    /* Hides the 'Fork' and 'Deploy' buttons (top right) */
-    .stDeployButton {visibility: hidden !important;}
-    .css-1rs60co {visibility: hidden !important;} /* Targets container elements */
-    .css-1lcbmhc {visibility: hidden !important;} /* Targets container elements */
-
-    /* Hides the GitHub link and related menu items */
-    a[aria-label="View source on GitHub"] {visibility: hidden;}
-    a[data-testid="Streamlit_DeployButton"] {visibility: hidden;}
-    </style>
-    """
-    st.markdown(hide_menu_style, unsafe_allow_html=True)
 
 # --- SPEECH-TO-TEXT (STT) FUNCTIONS ---
 
@@ -72,7 +49,6 @@ def get_speech_client():
     """Initializes Google Speech-to-Text client. Requires GOOGLE_APPLICATION_CREDENTIALS."""
     try:
         if "GOOGLE_APPLICATION_CREDENTIALS" not in os.environ:
-            # We display a warning but proceed without the client
             st.warning("GOOGLE_APPLICATION_CREDENTIALS not set. Voice input will fail.")
             return None
         return speech.SpeechClient()
@@ -105,7 +81,7 @@ def transcribe_audio(audio_bytes):
         st.error(f"Transcription failed: {e}")
         return f"ERROR: Transcription service failed ({e})."
 
-# --- CORE UTILITY FUNCTIONS (File Parsing, TTS) ---
+# --- CORE UTILITY FUNCTIONS (TTS, File Parsing, AI Logic) Omitted for brevity ---
 
 def speak_question(text):
     """Generates audio from text and returns the bytes for Streamlit audio player."""
@@ -148,14 +124,12 @@ def extract_text_from_file(uploaded_file):
         st.error(f"Unsupported file type: .{file_type}")
         return None
 
-# --- CORE AI LOGIC (JSON SCORING) ---
-
 def generate_interview_question_and_score(resume_text, protocol_text, conversation_history):
     """Generates the next question and scores the last answer using Gemini and JSON schema."""
     if not client:
         return {"next_question": "AI system unavailable. What are your core strengths?", "score_out_of_5": 3, "feedback": "System error. Interview continuing."}
 
-    # 1. Define the expected JSON output structure
+    # 1. Define the expected JSON output structure (Omitted for brevity)
     response_schema = types.Schema(
         type=types.Type.OBJECT,
         properties={
@@ -166,7 +140,7 @@ def generate_interview_question_and_score(resume_text, protocol_text, conversati
         required=["next_question", "score_out_of_5", "feedback"]
     )
 
-    # 2. Build the Full Prompt (omitted for brevity, assume correct from previous step)
+    # 2. Build the Full Prompt (Omitted for brevity)
     full_prompt = (
         f"--- CANDIDATE RESUME ---\n{resume_text}\n\n"
         f"--- INTERVIEW PROTOCOL ---\n{protocol_text}\n\n"
@@ -233,7 +207,7 @@ def main():
         <hr style="border: 3px dashed #00FFFF;"/>
     """, unsafe_allow_html=True)
 
-    # Initialize session state variables (omitted for brevity)
+    # Initialize session state variables (Omitted for brevity)
     if "messages" not in st.session_state: st.session_state.messages = []
     if "resume_text" not in st.session_state: st.session_state.resume_text = None
     if "protocol_text" not in st.session_state: st.session_state.protocol_text = None
@@ -245,13 +219,11 @@ def main():
     with st.sidebar:
         st.header("1. 📁 Setup & Files")
         
-        # File Uploader for Resume (Multi-format)
         uploaded_resume = st.file_uploader("Upload Candidate Resume (TXT, PDF, DOCX)", type=["txt", "pdf", "docx"])
         if uploaded_resume is not None and st.session_state.resume_text is None:
             text = extract_text_from_file(uploaded_resume)
             if text: st.session_state.resume_text = text; st.success(f"Resume uploaded: {uploaded_resume.name}")
 
-        # File Uploader for Protocol (Multi-format)
         uploaded_protocol = st.file_uploader("Upload Interview Protocol (TXT, PDF, DOCX)", type=["txt", "pdf", "docx"])
         if uploaded_protocol is not None and st.session_state.protocol_text is None:
             text = extract_text_from_file(uploaded_protocol)
@@ -296,10 +268,10 @@ def main():
         # --- AUDIO RECORDER AND STT LOGIC ---
         st.markdown("### 🗣️ Record Your Answer")
         
-        audio_data = st_audio_recorder(
+        # 1. Use the NEW audio recorder component
+        audio_data = st_audiorec(
             'Answer_Recorder', 
-            pause_on_submit=False,
-            time_format="%M:%S"
+            key='audio_input_key'
         )
         
         prompt = None
@@ -336,7 +308,7 @@ def main():
             st.session_state.messages.append({"role": "assistant", "content": next_q})
             st.rerun() 
         elif prompt and prompt.startswith("ERROR"):
-             st.error("Could not process voice input. Please try again.")
+             st.error("Could not process voice input. Please check logs for STT key issues.")
 
     # --- Scorecard Display and Initial Screen (Omitted for brevity) ---
     elif st.session_state.interview_ended:
