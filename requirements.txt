@@ -54,21 +54,15 @@ tzdata==2025.2
 urllib3==2.5.0
 watchdog==6.0.0
 websockets==15.0.1
-# --- Add these libraries (if they are not already listed) ---
 
-google-cloud-speech
-
-# --- Core Frameworks ---
+# --- CORE APPLICATION DEPENDENCIES ---
 streamlit
-
-# --- AI and API Libraries ---
 google-genai
-google-cloud-speech
-
-# --- Voice and Audio ---
 gTTS
-st-audiorec
-
-# --- File Handling ---
 PyPDF2
 python-docx
+
+# --- COMMON UTILITIES (Kept simple to avoid conflicts) ---
+requests
+numpy
+pandas
