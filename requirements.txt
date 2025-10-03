@@ -55,7 +55,7 @@ urllib3==2.5.0
 watchdog==6.0.0
 websockets==15.0.1
 # --- Add these libraries (if they are not already listed) ---
-streamlit-audio-recorder
+
 google-cloud-speech
 
 # --- Core Frameworks ---
@@ -67,7 +67,7 @@ google-cloud-speech
 
 # --- Voice and Audio ---
 gTTS
-streamlit-audio-recorder
+st-audiorec
 
 # --- File Handling ---
 PyPDF2
