@@ -1,0 +1,18 @@
+# Virtual Environment
+interview_bot_venv/
+.venv/
+.pytest_cache/
+
+# Python compiled files and logs
+__pycache__/
+*.pyc
+*.log
+
+# Streamlit/App temporary files
+.streamlit/
+*.mp3
+
+# API Keys and Sensitive Data (CRITICAL)
+.env
+google_stt_key.json
+*.key
