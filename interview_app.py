@@ -40,7 +40,8 @@ def get_gemini_client():
 client = get_gemini_client()
 
 
-# --- UI/AESTHETIC FIXES (Omitted for brevity) ---
+# --- STREAMLIT UI/AESTHETIC FIXES ---
+
 def hide_streamlit_elements():
     """Hides the main menu, GitHub icons, and footer for a cleaner look."""
     hide_menu_style = """
@@ -54,7 +55,7 @@ def hide_streamlit_elements():
     """
     st.markdown(hide_menu_style, unsafe_allow_html=True)
 
-# --- CORE UTILITY FUNCTIONS (TTS, File Parsing, AI Logic) Omitted for brevity ---
+# --- CORE UTILITY FUNCTIONS (TTS, File Parsing, AI Logic) ---
 
 def speak_question(text):
     """Generates audio from text and returns the bytes for Streamlit audio player."""
@@ -69,41 +70,79 @@ def speak_question(text):
 
 def extract_text_from_file(uploaded_file):
     """Extracts text from various file types (txt, pdf, docx)."""
-    # (File parsing logic here - kept for functionality)
     file_type = uploaded_file.name.split('.')[-1].lower()
     file_bytes = uploaded_file.read()
-    if file_type == 'txt': return file_bytes.decode("utf-8")
+    
+    if file_type == 'txt':
+        return file_bytes.decode("utf-8")
+    
     elif file_type == 'pdf':
         try:
             reader = PyPDF2.PdfReader(io.BytesIO(file_bytes))
             text = "".join([page.extract_text() or "" for page in reader.pages])
             return text
-        except Exception: return None
+        except Exception as e:
+            st.error(f"Error reading PDF: {e}")
+            return None
+            
     elif file_type in ['docx']:
         try:
             document = docx.Document(io.BytesIO(file_bytes))
-            return "\n".join([paragraph.text for paragraph in document.paragraphs])
-        except Exception: return None
-    else: st.error(f"Unsupported file type: .{file_type}"); return None
+            text = "\n".join([paragraph.text for paragraph in document.paragraphs])
+            return text
+        except Exception as e:
+            st.error(f"Error reading DOCX: {e}")
+            return None
+            
+    else:
+        st.error(f"Unsupported file type: .{file_type}")
+        return None
 
 def generate_interview_question_and_score(resume_text, protocol_text, conversation_history):
     """Generates the next question and scores the last answer using Gemini and JSON schema."""
     if not client:
         return {"next_question": "AI system unavailable. What are your core strengths?", "score_out_of_5": 3, "feedback": "System error. Interview continuing."}
+
+    # 1. Define the expected JSON output structure (Omitted for brevity)
+    response_schema = types.Schema(
+        type=types.Type.OBJECT,
+        properties={
+            "next_question": types.Schema(type=types.Type.STRING, description="The single, next, highly specific interview question."),
+            "score_out_of_5": types.Schema(type=types.Type.INTEGER, description="A technical score for the candidate's immediately preceding answer, ranging from 1 (Needs Improvement) to 5 (Mastery)."),
+            "feedback": types.Schema(type=types.Type.STRING, description="Specific, concise technical feedback (1-2 sentences) on the candidate's previous answer.")
+        },
+        required=["next_question", "score_out_of_5", "feedback"]
+    )
+
+    # 2. Build the Full Prompt (Omitted for brevity)
+    full_prompt = (
+        f"--- CANDIDATE RESUME ---\n{resume_text}\n\n"
+        f"--- INTERVIEW PROTOCOL ---\n{protocol_text}\n\n"
+        f"--- CONVERSATION HISTORY ---\n"
+    )
     
-    # (JSON Schema definition and prompt building logic here - Omitted for brevity)
-    response_schema = types.Schema(type=types.Type.OBJECT, properties={"next_question": types.Schema(type=types.Type.STRING), "score_out_of_5": types.Schema(type=types.Type.INTEGER), "feedback": types.Schema(type=types.Type.STRING)}, required=["next_question", "score_out_of_5", "feedback"])
-    full_prompt = f"--- CANDIDATE RESUME ---\n{resume_text}\n\n--- INTERVIEW PROTOCOL ---\n{protocol_text}\n\n--- CONVERSATION HISTORY ---\n"
     if conversation_history:
         for message in conversation_history:
-            if message['role'] == 'user': full_prompt += f"Candidate Answer: {message['content']}\n"
+            if message['role'] == 'user':
+                full_prompt += f"Candidate Answer: {message['content']}\n"
             elif message['role'] == 'assistant':
-                if not message['content'].startswith("**🔥 Score on Previous Answer:"): full_prompt += f"Interviewer Question: {message['content']}\n"
+                if not message['content'].startswith("**🔥 Score on Previous Answer:"):
+                    full_prompt += f"Interviewer Question: {message['content']}\n"
+    
     full_prompt += "\nBased on all the information above, generate the next interview question and provide a score and feedback for the candidate's last answer in the requested JSON format."
 
     try:
-        response = client.models.generate_content(model=MODEL_NAME, contents=full_prompt, config=types.GenerateContentConfig(system_instruction=SYSTEM_INSTRUCTION, response_mime_type="application/json", response_schema=response_schema))
+        response = client.models.generate_content(
+            model=MODEL_NAME,
+            contents=full_prompt,
+            config=types.GenerateContentConfig(
+                system_instruction=SYSTEM_INSTRUCTION,
+                response_mime_type="application/json",
+                response_schema=response_schema
+            )
+        )
         return json.loads(response.text.strip())
+        
     except Exception as e:
         st.exception(e)
         return {"next_question": "I apologize, a system error occurred. Please answer the last question again.", "score_out_of_5": 3, "feedback": "System error: Could not process structured JSON response."}
@@ -112,6 +151,8 @@ def generate_interview_question_and_score(resume_text, protocol_text, conversati
 
 def main():
     st.set_page_config(page_title=APP_TITLE, layout="wide", initial_sidebar_state="expanded")
+    
+    # 🌟 NEW: HIDE MENUS AND FORK BUTTON
     hide_streamlit_elements() 
 
     # Aesthetic Title and Header (Omitted for brevity)
@@ -144,7 +185,9 @@ def main():
             text = extract_text_from_file(uploaded_protocol)
             if text: st.session_state.protocol_text = text; st.success(f"Protocol uploaded: {uploaded_protocol.name}")
             
-        st.markdown("---"); st.header("2. 📸 Proctoring & Start"); st.warning("Webcam check bypassed. Upload files to proceed.")
+        st.markdown("---")
+        st.header("2. 📸 Proctoring & Start")
+        st.warning("Webcam check bypassed. Upload files to proceed.")
 
         can_start = (st.session_state.resume_text is not None and st.session_state.protocol_text is not None and not st.session_state.interview_started and not st.session_state.interview_ended)
 
